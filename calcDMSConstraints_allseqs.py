@@ -16,6 +16,7 @@ import sys
 from Bio import SeqIO
 import os
 import time
+import csv
 
 start = time.time()
 
@@ -49,9 +50,7 @@ print(len(covs)) #should be 3
 
 timepoint1 = time.time()
 
-# save sequence name, sequence, array with normalized reactivity at each nt position
-react_dict = {}
-
+low_cov_seq_count = 0
 for i in range(len(seqs)): # Loop through all sequences in the pool
 
     threshold = 400
@@ -70,6 +69,7 @@ for i in range(len(seqs)): # Loop through all sequences in the pool
    # print(pass_threshold)
     #print(cover_3rep)
     if np.average(cover_3rep) < threshold:
+        low_cov_seq_count += 1
         continue
 
     # Loop through replicates, calculate raw reactivities for all replicates, setting low coverage and G/T positions as nan
@@ -83,7 +83,7 @@ for i in range(len(seqs)): # Loop through all sequences in the pool
         reacts = []
         for j in np.arange(len(seq)):
             if seq[j] in ["A","a","C","c"]:
-                if not pass_threshold[i]:
+                if not pass_threshold[j]:
                     reacts.append(np.nan)
                 else:
                     raw_react = mut[j]/cov[j]
@@ -95,7 +95,7 @@ for i in range(len(seqs)): # Loop through all sequences in the pool
 
     # Average all reactivities across 3 replicates, ignoring nan values
     avg_reacts = np.nanmean(all_reacts,axis = 0)
-    print("Average reactivities across 3 replicates:"+str(avg_reacts))
+    #print("Average reactivities across 3 replicates:"+str(avg_reacts))
 
     # Normalize data 0 to 1
     norm_reacts = np.ma.array(avg_reacts,mask=np.isnan(avg_reacts))
@@ -103,22 +103,33 @@ for i in range(len(seqs)): # Loop through all sequences in the pool
 
     # Convert existing nanas to -999 for SHAPE reactivity format
     norm_reacts[np.isnan(norm_reacts)] = -999
-    print("Final reactivity data: "+str(norm_reacts))
+    #print("Final reactivity data: "+str(norm_reacts))
     
-    print(react_dict)
-
-    #Trim first 20 and last 10 nts
     name = pool_names[i]
-    react_dict[name] = {}
-    react_dict[name]["seq"] = seqs[i][20:290]
-    react_dict[name]["norm_reacts"] = norm_reacts
 
    # print(react_dict)
-    break
+    
+    # Write positions and reactivities to a csv file (SHAPE reactivity format)
+    pos = np.arange(1, len(seq)+1)
+    c = open(path+f"/DMS_fa_files/{name}_DMS_FL.csv","w")
+    writer = csv.writer(c, delimiter="\t")
+    writer.writerows(zip(pos,norm_reacts))
+    c.close()
+    
+    # Create fasta file with single sequence
+    fa = open(path+f"/DMS_fa_files/{name}_FL.fa","w")
+    fa.write(">"+name+"\n")
+    fa.write(seq+"\n")
+    fa.close()
+    
+    
+    #break
+
 timepoint2 = time.time()
 
 print("Time taken to parse fasta:"+str(timepoint0-start))
 print("Time taken to unpickle:"+str(timepoint1-timepoint0))
-print("Time taken to loop one sequence:" +str(timepoint2-timepoint1))
+print("Time taken to loop all sequences:" +str(timepoint2-timepoint1))
+print("low coverage sequence count:" + str(low_cov_seq_count))
         
 
