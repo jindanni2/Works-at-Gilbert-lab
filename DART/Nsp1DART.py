@@ -118,11 +118,11 @@ def RRS_Retention(CPM_file,norm_dict):
 	# Calculate RRS and Retention，and their logarithms
 	for sample in norm_dict:
 		if sample.startswith("monosome"):
-			RRS_df[sample] = CPM_df[sample]/norm_dict[sample]/CPM_df[corresponding_IVT[sample]]
-			log2RRS_df[sample] = np.log2(RRS_df[sample])
+			RRS_df[sample[9:]] = CPM_df[sample]/norm_dict[sample]/CPM_df[corresponding_IVT[sample]]
+			log2RRS_df[sample[9:]] = np.log2(RRS_df[sample[9:]])
 		elif sample.startswith("input"):
-			Retention_df[sample] = CPM_df[sample]/norm_dict[sample]/CPM_df[corresponding_IVT[sample]]
-			log2Retention_df[sample] = np.log2(Retention_df[sample])
+			Retention_df[sample[6:]] = CPM_df[sample]/norm_dict[sample]/CPM_df[corresponding_IVT[sample]]
+			log2Retention_df[sample[6:]] = np.log2(Retention_df[sample[6:]])
 
 	# Write tsv files
 	RRS_df.to_csv("RRS_norm_1.tsv", sep = "\t", index = False)
@@ -130,11 +130,34 @@ def RRS_Retention(CPM_file,norm_dict):
 	Retention_df.to_csv("Retention_norm_1.tsv", sep = "\t", index = False)
 	log2Retention_df.to_csv("log2Retention_norm_1.tsv", sep = "\t", index = False)
 
-####### YOU ARE HERE ###########
 
 def RRS_prime():
-	pass
+# Calculates RRS_prime for each UTR. RRS_prime is defined as (norm CPM in monosome)/(norm CPM in translation input), which is equavalent to RRS/Retention.
 
+	# Read RRS and Retention files, initiate new data frame, fill in UTR IDs
+	RRS_df = pd.read_csv("RRS_norm_1.tsv", sep = "\t")
+	Retention_df = pd.read_csv("Retention_norm_1.tsv", sep = "\t")
+
+	RRSprime_df = pd.DataFrame()
+	RRSprime_df["#ID"] = RRS_df["#ID"]
+
+	# Extract sample names from RRS dataframe
+	sample_list = []
+	for col in RRS_df.columns:
+		if col != "#ID":
+			sample_list.append(col)
+
+	# Calculate RRSprime for each sample
+	for sample in sample_list:
+		RRSprime_df[sample] = RRS_df[sample]/Retention_df[sample]
+	
+	# Write tsv file
+	RRSprime_df.to_csv("RRSprime.tsv", sep = "\t", index = False)
+
+####### YOU ARE HERE ###########
+
+def Read_filter():
+	pass
 
 def main():
 	sample_files = {"monosome-Rep-2":"80S-Rep-2-5__barcode_Bar1_1.fastq.gz_coverage.txt",
@@ -201,4 +224,6 @@ def main():
 	norm_ctrl_dict = Norm_ctrl(ctrlCPM_dict)
 	RRS_Retention("CPM.tsv", norm_ctrl_dict)
 
-main()		
+#main()
+
+RRS_prime()		
